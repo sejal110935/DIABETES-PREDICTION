@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from collections import Counter
 import pickle
 import numpy as np
 import pandas as pd
@@ -29,14 +30,6 @@ accuracies = {
     "Ensemble": ensemble_accuracy
 }
 
-# Identify the model with the highest accuracy
-best_model_name = max(accuracies, key=accuracies.get)
-best_model = {
-    "Logistic Regression": model1,
-    "SVM": model2,
-    "Ensemble": model
-}[best_model_name]
-
 
 app = Flask(__name__)
 
@@ -53,6 +46,7 @@ def predict():
     # Apply scaling and PCA
     scaled_input = scaler.transform(final_features)  # Scale the input
     transformed_input = pca.transform(scaled_input)  # Apply PCA
+
 
     # If model outputs probabilities
     prediction1 = model1.predict_proba(transformed_input)[0]  # Probabilities for all classes
@@ -75,11 +69,6 @@ def predict():
     print(f"Model1 Prediction: {model1_label}")
     print(f"Model2 Prediction: {model2_label}")
     print(f"Ensemble Prediction: {ensemble_label}")
-
-    # Get prediction from the best model
-    best_prediction = best_model.predict(transformed_input)
-    best_prediction_label = class_mapping[best_prediction[0]]
-
 
     fig, ax = plt.subplots()
     ax.bar(accuracies.keys(), accuracies.values(), color=['blue', 'green', 'purple'])
@@ -104,8 +93,6 @@ def predict():
         model1_accuracy=model1_accuracy,
         model2_accuracy=model2_accuracy,
         ensemble_accuracy=ensemble_accuracy,
-        best_model_name=best_model_name,
-        best_prediction_label=best_prediction_label
     )
 
 if __name__ == "__main__":
