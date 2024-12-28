@@ -1,18 +1,42 @@
 from flask import Flask, request, jsonify, render_template
 import pickle
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 import io
 import base64
 
 # Load the trained model
-model_path = 'finalaatmodel1.pkl'
+model_path = 'aatmodel.pkl'
 with open(model_path, 'rb') as file:
-    model = pickle.load(file)
+    model, X_train, y_train, scaler, pca = pickle.load(file)
 
 # Extract individual models from the stacking ensemble
-model1 = model.named_estimators_['logreg']
+model1 = model.named_estimators_['log_reg']
 model2 = model.named_estimators_['svm']
+
+# Extract actual accuracies from training
+model1_accuracy = model1.score(X_train, y_train)
+model2_accuracy = model2.score(X_train, y_train)
+ensemble_accuracy = model.score(X_train, y_train)
+
+# Store accuracies in a dictionary for easier comparison
+accuracies = {
+    "Logistic Regression": model1_accuracy,
+    "SVM": model2_accuracy,
+    "Ensemble": ensemble_accuracy
+}
+
+# Identify the model with the highest accuracy
+best_model_name = max(accuracies, key=accuracies.get)
+best_model = {
+    "Logistic Regression": model1,
+    "SVM": model2,
+    "Ensemble": model
+}[best_model_name]
+
 
 app = Flask(__name__)
 
@@ -25,25 +49,38 @@ def predict():
     # Extract data from the form
     int_features = [float(x) for x in request.form.values()]
     final_features = [np.array(int_features)]
-    
-    # Make predictions with each model
-    prediction1 = model1.predict(final_features)[0]
-    prediction2 = model2.predict(final_features)[0]
-    ensemble_prediction = model.predict(final_features)[0]
 
-    # Results for individual models
-    model1_result = "Diabetic" if prediction1 == 1 else "Non-Diabetic"
-    model2_result = "Diabetic" if prediction2 == 1 else "Non-Diabetic"
-    ensemble_result = "Diabetic" if ensemble_prediction == 1 else "Non-Diabetic"
+    # Apply scaling and PCA
+    scaled_input = scaler.transform(final_features)  # Scale the input
+    transformed_input = pca.transform(scaled_input)  # Apply PCA
 
-    # Simulate accuracy values or replace them with actual values from training
-    accuracies = {
-        "Logistic Regression": 0.85,  # Replace with actual training accuracy for model1
-        "SVM": 0.88,  # Replace with actual training accuracy for model2
-        "Ensemble": 0.90  # Replace with actual training accuracy for the ensemble model
-    }
+    # If model outputs probabilities
+    prediction1 = model1.predict_proba(transformed_input)[0]  # Probabilities for all classes
+    prediction2 = model2.predict_proba(transformed_input)[0]  # Probabilities for all classes
+    ensemble_prediction = model.predict_proba(transformed_input)[0]  # Probabilities for all classes
 
-    # Generate accuracy comparison graph
+    # Extracting the maximum probability and predicting the class
+    model1_result = np.argmax(prediction1)
+    model2_result = np.argmax(prediction2)
+    ensemble_result = np.argmax(ensemble_prediction)
+
+    # Mapping numerical predictions to class labels
+    class_mapping = {0: "Non-Diabetic", 1: "Pre-Diabetic", 2: "Diabetic"}
+
+    model1_label = class_mapping[model1_result]
+    model2_label = class_mapping[model2_result]
+    ensemble_label = class_mapping[ensemble_result]
+
+    # Display prediction results
+    print(f"Model1 Prediction: {model1_label}")
+    print(f"Model2 Prediction: {model2_label}")
+    print(f"Ensemble Prediction: {ensemble_label}")
+
+    # Get prediction from the best model
+    best_prediction = best_model.predict(transformed_input)
+    best_prediction_label = class_mapping[best_prediction[0]]
+
+
     fig, ax = plt.subplots()
     ax.bar(accuracies.keys(), accuracies.values(), color=['blue', 'green', 'purple'])
     ax.set_ylabel('Accuracy')
@@ -60,10 +97,15 @@ def predict():
     # Render the result page with predictions and graph
     return render_template(
         'comparison.html',
-        model1_result=model1_result,
-        model2_result=model2_result,
-        ensemble_result=ensemble_result,
-        graph_image=graph_image
+        model1_result=model1_label,
+        model2_result=model2_label,
+        ensemble_result=ensemble_label,
+        graph_image=graph_image,
+        model1_accuracy=model1_accuracy,
+        model2_accuracy=model2_accuracy,
+        ensemble_accuracy=ensemble_accuracy,
+        best_model_name=best_model_name,
+        best_prediction_label=best_prediction_label
     )
 
 if __name__ == "__main__":
