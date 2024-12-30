@@ -61,7 +61,11 @@
             </div>
         </div>
 
-
+        <div class="mt-4 text-center">
+            <h4><strong>Best Performing Model:</strong> {{ best_model_name }}</h4>
+            <p><strong>Prediction by Best Model: </strong> {{ best_model_result }}</p>
+        </div>
+        
         <h4 class="text-center">Accuracy Comparison</h4>
         <div class="text-center">
             <img src="data:image/png;base64,{{ graph_image }}" alt="Accuracy Comparison Graph">
