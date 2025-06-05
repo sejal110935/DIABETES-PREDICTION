@@ -91,9 +91,3 @@ The model was trained using a dataset with the following columns:
 
 ---
 
-## 🛠️ How to Run Locally
-
-### 1. Clone the repository or download the ZIP
-```bash
-git clone https://github.com/your-username/diabetes-prediction-app.git
-cd diabetes-prediction-app
